@@ -1,0 +1,168 @@
+import csv
+import os
+from datetime import datetime
+
+FILE_NAME = "pasien.csv"
+FIELDNAMES = ["Nama Depan", "Nama Belakang", "No. BPJS", "Jenis Kelamin", "Tanggal Lahir"]
+
+DATA_AWAL = [
+    {"Nama Depan": "Siti", "Nama Belakang": "Aisyah", "No. BPJS": "1234567890", "Jenis Kelamin": "P", "Tanggal Lahir": "1995-03-14"},
+    {"Nama Depan": "Andi", "Nama Belakang": "Firman", "No. BPJS": "9876543210", "Jenis Kelamin": "L", "Tanggal Lahir": "1988-09-22"},
+    {"Nama Depan": "Maria", "Nama Belakang": "Clara", "No. BPJS": "1122334455", "Jenis Kelamin": "P", "Tanggal Lahir": "2001-06-07"},
+    {"Nama Depan": "Budi", "Nama Belakang": "Santoso", "No. BPJS": "5566778899", "Jenis Kelamin": "L", "Tanggal Lahir": "1990-12-15"},
+]
+
+def buat_file_baru():
+    with open(FILE_NAME, mode='w', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=FIELDNAMES)
+        writer.writeheader()
+        writer.writerows(DATA_AWAL)
+    print("✅ File pasien.csv berhasil dibuat ulang.")
+
+def cek_file():
+    if not os.path.exists(FILE_NAME):
+        print("🔍 File pasien.csv tidak ditemukan. Membuat file baru...")
+        buat_file_baru()
+    else:
+        with open(FILE_NAME, mode='r') as file:
+            reader = csv.reader(file)
+            try:
+                header = next(reader)
+            except StopIteration:
+                header = []
+            if set(header) != set(FIELDNAMES):
+                print("⚠️  File pasien.csv tidak valid. Membuat file baru...")
+                buat_file_baru()
+
+def hitung_umur(tanggal_lahir_str):
+    try:
+        lahir = datetime.strptime(tanggal_lahir_str, "%Y-%m-%d")
+        sekarang = datetime.today()
+        umur = sekarang.year - lahir.year - ((sekarang.month, sekarang.day) < (lahir.month, lahir.day))
+        return umur
+    except ValueError:
+        return "Format Salah"
+
+def lihat_data():
+    cek_file()
+    with open(FILE_NAME, mode='r') as file:
+        reader = csv.DictReader(file)
+        data = list(reader)
+        if not data:
+            print("Belum ada data pasien.")
+            return
+        for idx, row in enumerate(data, start=1):
+            tanggal_lahir = row.get("Tanggal Lahir", "")
+            if tanggal_lahir:
+                umur = hitung_umur(tanggal_lahir)
+            else:
+                umur = "Data tidak lengkap"
+            print(f"{idx}. {row.get('Nama Depan', '')} {row.get('Nama Belakang', '')} | "
+                  f"BPJS: {row.get('No. BPJS', '')} | "
+                  f"JK: {row.get('Jenis Kelamin', '')} | "
+                  f"Lahir: {tanggal_lahir} | Umur: {umur} tahun")
+
+def tambah_data():
+    print("\n== Tambah Data Pasien ==")
+    data_baru = {}
+    for field in FIELDNAMES:
+        if field == "Tanggal Lahir":
+            while True:
+                tanggal = input("Tanggal Lahir (YYYY-MM-DD): ")
+                try:
+                    datetime.strptime(tanggal, "%Y-%m-%d")
+                    data_baru["Tanggal Lahir"] = tanggal
+                    break
+                except ValueError:
+                    print("❌ Format tanggal salah. Gunakan YYYY-MM-DD.")
+        else:
+            data_baru[field] = input(f"{field}: ")
+
+    with open(FILE_NAME, mode='a', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=FIELDNAMES)
+        writer.writerow(data_baru)
+    print("✅ Data pasien berhasil ditambahkan!")
+
+def edit_data():
+    lihat_data()
+    try:
+        indeks = int(input("Masukkan nomor pasien yang ingin diedit: ")) - 1
+    except ValueError:
+        print("❌ Masukkan angka yang valid.")
+        return
+
+    with open(FILE_NAME, mode='r') as file:
+        data = list(csv.DictReader(file))
+
+    if 0 <= indeks < len(data):
+        print("Kosongkan input jika tidak ingin mengubah nilai.")
+        for field in FIELDNAMES:
+            nilai_lama = data[indeks][field]
+            nilai_baru = input(f"{field} [{nilai_lama}]: ")
+            if nilai_baru:
+                if field == "Tanggal Lahir":
+                    try:
+                        datetime.strptime(nilai_baru, "%Y-%m-%d")
+                        data[indeks][field] = nilai_baru
+                    except ValueError:
+                        print("❌ Format tanggal salah. Tidak diubah.")
+                else:
+                    data[indeks][field] = nilai_baru
+        with open(FILE_NAME, mode='w', newline='') as file:
+            writer = csv.DictWriter(file, fieldnames=FIELDNAMES)
+            writer.writeheader()
+            writer.writerows(data)
+        print("✅ Data pasien berhasil diperbarui.")
+    else:
+        print("❌ Nomor pasien tidak ditemukan.")
+
+def hapus_data():
+    lihat_data()
+    try:
+        indeks = int(input("Masukkan nomor pasien yang ingin dihapus: ")) - 1
+    except ValueError:
+        print("❌ Masukkan angka yang valid.")
+        return
+
+    with open(FILE_NAME, mode='r') as file:
+        data = list(csv.DictReader(file))
+
+    if 0 <= indeks < len(data):
+        konfirmasi = input(f"Yakin ingin menghapus data {data[indeks]['Nama Depan']}? (y/n): ")
+        if konfirmasi.lower() == 'y':
+            data.pop(indeks)
+            with open(FILE_NAME, mode='w', newline='') as file:
+                writer = csv.DictWriter(file, fieldnames=FIELDNAMES)
+                writer.writeheader()
+                writer.writerows(data)
+            print("✅ Data pasien berhasil dihapus.")
+    else:
+        print("❌ Nomor pasien tidak ditemukan.")
+
+def menu():
+    cek_file()
+    while True:
+        print("\n=== Menu Aplikasi Klinik Kecantikan ===")
+        print("1. Lihat Data Pasien")
+        print("2. Tambah Data Pasien")
+        print("3. Edit Data Pasien")
+        print("4. Hapus Data Pasien")
+        print("5. Keluar")
+        pilihan = input("Pilih menu (1-5): ")
+
+        if pilihan == '1':
+            lihat_data()
+        elif pilihan == '2':
+            tambah_data()
+        elif pilihan == '3':
+            edit_data()
+        elif pilihan == '4':
+            hapus_data()
+        elif pilihan == '5':
+            print("👋 Terima kasih telah menggunakan aplikasi!")
+            break
+        else:
+            print("❌ Pilihan tidak valid!")
+
+if __name__ == "__main__":
+    menu()
